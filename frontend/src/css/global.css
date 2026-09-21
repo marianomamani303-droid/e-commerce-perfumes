@@ -1,0 +1,51 @@
+/* AJUSTES GLOBALES */
+
+body{
+    background-color: var(--bg-primary);
+    margin: 0;
+}
+
+*{
+    color: var(--text-primary);
+    box-sizing: border-box;
+}
+
+p{
+    color: var(--text-secondary);
+}
+
+h1, h2, h3{
+    text-transform: uppercase;
+}
+
+a{
+    padding: .7rem;
+    border-radius: 10px;
+    color: black;
+    font-weight: 600;
+    text-transform: uppercase;
+    background-color: var(--gold-light);
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    margin: 10px;
+}
+
+img{
+    margin: 4px;
+}
+@media (max-width: 600px){
+    .navegacion{
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .links{
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+    }
+}

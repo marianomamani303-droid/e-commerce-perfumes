@@ -1,0 +1,221 @@
+/* ===========================
+   FORMULARIOS LOGIN / REGISTRO
+=========================== */
+
+
+.registro-formulario,
+.login-formulario {
+
+    display:flex;
+
+    flex-direction:column;
+
+    justify-content:center;
+
+    align-items:center;
+
+    background:var(--bg-card);
+
+    padding:2.5rem;
+
+    width:min(35rem,90%);
+
+    border-radius:20px;
+
+    border:1px solid var(--border-color);
+
+    box-shadow:var(--shadow);
+
+}
+
+
+
+/* CARD CONTENEDOR */
+
+
+.registro-card,
+.login-card {
+
+    min-height:100vh;
+
+    display:flex;
+
+    flex-direction:column;
+
+    justify-content:center;
+
+    align-items:center;
+
+    padding:2rem;
+
+}
+
+
+
+
+
+/* CAMPOS */
+
+
+.campo {
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:.5rem;
+
+    margin:1rem;
+
+    width:100%;
+
+}
+
+
+
+.campo label {
+
+    color:var(--text-secondary);
+
+    font-size:.9rem;
+
+}
+
+
+
+
+
+/* INPUTS */
+
+
+.campo input {
+
+    width:100%;
+
+    padding:.9rem 1rem;
+
+    border-radius:12px;
+
+    border:1px solid var(--border-color);
+
+    outline:none;
+
+    background:var(--bg-secondary);
+
+    color:var(--text-primary);
+
+    transition:.3s ease;
+
+}
+
+
+
+.campo input:focus {
+
+    border-color:var(--gold-primary);
+
+    box-shadow:
+    0 0 10px rgba(201,162,39,.25);
+
+}
+
+
+
+.campo input::placeholder {
+
+    color:var(--text-muted);
+
+}
+
+
+
+
+
+/* BOTÓN */
+
+
+.registro-formulario button,
+.login-formulario button {
+
+    width:100%;
+
+    margin-top:1rem;
+
+    padding:1rem;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:var(--gold-primary);
+
+    color:var(--button-text);
+
+    font-weight:bold;
+
+    cursor:pointer;
+
+    transition:.3s ease;
+
+}
+
+
+
+.registro-formulario button:hover,
+.login-formulario button:hover {
+
+    background:var(--gold-light);
+
+    transform:translateY(-3px);
+
+}
+
+
+
+
+
+/* TITULOS */
+
+
+.registro-formulario h2,
+.login-formulario h2 {
+
+    color:var(--gold-light);
+
+    text-transform:uppercase;
+
+    margin-bottom:1rem;
+
+}
+
+
+
+
+
+/* ===========================
+   RESPONSIVE
+=========================== */
+
+
+@media(max-width:600px){
+
+
+.registro-formulario,
+.login-formulario {
+
+    padding:1.5rem;
+
+    width:95%;
+
+}
+
+
+
+.campo {
+
+    margin:.8rem;
+
+}
+
+
+}

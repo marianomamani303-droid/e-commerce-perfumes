@@ -1,0 +1,31 @@
+:root {
+    /* Fondos */
+    --bg-primary: #0b0b0d;       /* Negro principal */
+    --bg-secondary: #141416;     /* Secciones */
+    --bg-card: #1c1c20;          /* Tarjetas */
+    --bg-hover: #25252a;         /* Hover */
+
+    /* Colores de marca */
+    --gold-primary: #c9a227;     /* Dorado lujo */
+    --gold-light: #e6c766;        /* Dorado brillante */
+    --gold-dark: #8f6d15;        /* Dorado oscuro */
+
+    /* Textos */
+    --text-primary: #ffffff;
+    --text-secondary: #b8b8b8;
+    --text-muted: #777777;
+
+    /* Bordes */
+    --border-color: #2d2d32;
+
+    /* Estados */
+    --success: #4caf50;
+    --danger: #d9534f;
+
+    /* Sombras */
+    --shadow: 0 10px 30px rgba(0,0,0,0.4);
+
+    /* Botones */
+    --button-bg: #c9a227;
+    --button-text: #0b0b0d;
+}
