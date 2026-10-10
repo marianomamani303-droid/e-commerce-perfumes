@@ -1,446 +1,277 @@
-import "../css/variables.css"
-import "../css/dashboard.css"
-import "../css/mostrarproductod.css"
-import { useState,useEffect } from "react";
-import icon from "../assets/icons8-menu.svg"
-import { Navigate } from "react-router-dom"
-import NavBar from "../componentes/navbar" 
-
-
-
-function Dashboard() {
-  const rol = localStorage.getItem("rol");
-
-  const [desplegar, setdesplegar] = useState("desplegar");
-  const [clickAP, setclickAP] = useState(false);
-  const [clickPA, setclickPA] = useState(false);
-
-  if (rol !== "admin") {
-    return <Navigate to="/" replace />;
-  }
-
-  const mostraAP = () => {
-    setclickAP(true);
-    setclickPA(false);
-  };
-
-  const mostraPA = () => {
-    setclickPA(true);
-    setclickAP(false);
-  };
-
-  return (
-    <>
-      <NavBar />
-
-      <div className={`side-bar ${desplegar}`}>
-        <img
-          src={icon}
-          alt="menu"
-          width="50"
-          className="menu-icon"
-          onClick={() =>
-            setdesplegar(
-              desplegar === "desplegar"
-                ? "ocultar"
-                : "desplegar"
-            )
-          }
-        />
-
-        <div className="opciones-dashboard">
-          <button onClick={mostraAP}>
-            Agregar producto
-          </button>
-
-          <button onClick={mostraPA}>
-            Productos agregados
-          </button>
-        </div>
-      </div>
-
-      <main className={`contenido-dashboard ${desplegar}`}>
-        {!clickAP && !clickPA && (
-          <AgregarProducto desplegar={desplegar} />
-        )}
-
-        {clickAP && (
-          <AgregarProducto desplegar={desplegar} />
-        )}
-
-        {clickPA && (
-          <MostrarProductos desplegar={desplegar} />
-        )}
-      </main>
-    </>
-  );
-}
-
-
-
-
-
-function AgregarProducto({ desplegar }) {
-  const [producto, setProducto] = useState({
-    nombre: "",
-    marca: "",
-    categoria: "",
-    descripcion: "",
-    precio: "",
-    oferta: "",
-    stock: "",
-    imagen: "",
-    sku: "",
-    tamano: ""
-  });
-
-  const handleChange = (e) => {
-    const { name, value, files } = e.target;
-
-    setProducto(prev => ({
-      ...prev,
-      [name]: files ? files[0] : value
-    }));
-  };
-
-  const enviarProducto = async (e) => {
-    e.preventDefault();
-
-    const formData = new FormData();
-
-    Object.keys(producto).forEach((key) => {
-      formData.append(key, producto[key]);
-    });
-
-    const respuesta = await fetch("https://ecommerce-backend-xqxo.onrender.com/productos", {
-      method: "POST",
-      body: formData
-    });
-
-    const datos = await respuesta.json();
-
-    if (!respuesta.ok) {
-      console.log(datos);
-      return;
+import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useShop } from '../context/ShopContext';
+import { useResource } from '../hooks/useResource';
+import { api, readableError } from '../services/api';
+import { money, finalPrice } from '../utils/format';
+import { Loading, ErrorState } from '../components/Feedback';
+import ProductImage from '../components/ProductImage';
+import Icon from '../components/Icon';
+function ProductForm({ onSaved }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  async function submit(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    setBusy(true);
+    setError('');
+    setSuccess('');
+    try {
+      await api('/admin/products', { method: 'POST', body: new FormData(form) });
+      form.reset();
+      setSuccess('Producto publicado en la colección.');
+      onSaved();
+    } catch (failure) {
+      setError(readableError(failure));
+    } finally {
+      setBusy(false);
     }
-
-    console.log("Producto guardado:", datos);
-  };
-
+  }
   return (
-    <form
-      className={`form-productos ${desplegar}`}
-      onSubmit={enviarProducto}
-    >
-      <h1 className="titulo-dashboard">Airbell</h1>
-      <h2>Agregar producto</h2>
-
-      <div className="grupo-input">
-        <label>Nombre</label>
-        <input
-          type="text"
-          name="nombre"
-          onChange={handleChange}
-          placeholder="Ej: Dior Sauvage"
-        />
-      </div>
-
-      <div className="fila">
-        <div className="grupo-input">
-          <label>Marca</label>
-          <input
-            type="text"
-            name="marca"
-            onChange={handleChange}
-            placeholder="Ej: Dior"
+    <form className="admin-form form-stack" onSubmit={submit}>
+      <p className="eyebrow">AMPLIÁ LA COLECCIÓN</p>
+      <h2>Una nueva fragancia.</h2>
+      <fieldset disabled={busy}>
+        <div className="form-grid">
+          <label htmlFor="product-name">
+            Nombre
+            <input
+              id="product-name"
+              name="nombre"
+              maxLength={150}
+              required
+              placeholder="Nombre del perfume"
+            />
+          </label>
+          <label htmlFor="product-brand">
+            Marca
+            <input id="product-brand" name="marca" maxLength={100} required />
+          </label>
+          <label htmlFor="product-category">
+            Categoría
+            <select id="product-category" name="categoria" required defaultValue="">
+              <option disabled value="">
+                Elegí una categoría
+              </option>
+              <option>Femenino</option>
+              <option>Masculino</option>
+              <option>Unisex</option>
+            </select>
+          </label>
+          <label htmlFor="product-size">
+            Presentación
+            <input id="product-size" name="tamano" maxLength={50} required placeholder="100 ml" />
+          </label>
+          <label htmlFor="product-price">
+            Precio en ARS
+            <input
+              id="product-price"
+              name="precio"
+              type="number"
+              min="0.01"
+              max="10000000"
+              step="0.01"
+              required
+            />
+          </label>
+          <label htmlFor="product-offer">
+            Descuento (%)
+            <input
+              id="product-offer"
+              name="oferta"
+              type="number"
+              min="0"
+              max="90"
+              step="1"
+              defaultValue="0"
+              required
+            />
+          </label>
+          <label htmlFor="product-stock">
+            Stock
+            <input
+              id="product-stock"
+              name="stock"
+              type="number"
+              min="0"
+              max="100000"
+              step="1"
+              required
+            />
+          </label>
+          <label htmlFor="product-sku">
+            SKU
+            <input id="product-sku" name="sku" maxLength={80} required />
+          </label>
+        </div>
+        <label htmlFor="product-description">
+          Descripción
+          <textarea
+            id="product-description"
+            name="descripcion"
+            rows="4"
+            maxLength={4000}
+            required
+            placeholder="Contá cómo se siente esta fragancia…"
           />
-        </div>
-
-        <div className="grupo-input">
-          <label>Categoría</label>
-          <select
-            name="categoria"
-            onChange={handleChange}
-          >
-            <option value="">Seleccionar</option>
-            <option value="hombre">Hombre</option>
-            <option value="mujer">Mujer</option>
-            <option value="unisex">Unisex</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="fila">
-        <div className="grupo-input">
-          <label>Precio</label>
+        </label>
+        <label className="upload-field" htmlFor="product-image">
+          <Icon name="box" size={28} />
+          <span>Fotografía del producto</span>
+          <small>JPG, PNG o WebP · Hasta 5 MB</small>
           <input
-            type="number"
-            name="precio"
-            onChange={handleChange}
+            id="product-image"
+            type="file"
+            name="imagen"
+            accept="image/jpeg,image/png,image/webp"
+            required
           />
-        </div>
-
-        <div className="grupo-input">
-          <label>Oferta (%)</label>
-          <input
-            type="number"
-            name="oferta"
-            onChange={handleChange}
-          />
-        </div>
-      </div>
-
-      <div className="fila">
-        <div className="grupo-input">
-          <label>Stock</label>
-          <input
-            type="number"
-            name="stock"
-            onChange={handleChange}
-          />
-        </div>
-
-        <div className="grupo-input">
-          <label>SKU</label>
-          <input
-            type="text"
-            name="sku"
-            onChange={handleChange}
-          />
-        </div>
-      </div>
-
-      <div className="grupo-input">
-        <label>Tamaño</label>
-        <input
-          type="text"
-          name="tamano"
-          placeholder="50ml, 100ml..."
-          onChange={handleChange}
-        />
-      </div>
-
-      <div className="grupo-input">
-        <label>Descripción</label>
-        <textarea
-          name="descripcion"
-          rows="5"
-          onChange={handleChange}
-        />
-      </div>
-
-      <div className="grupo-input">
-        <label>Imagen</label>
-        <input
-          type="file"
-          name="imagen"
-          onChange={handleChange}
-        />
-      </div>
-
-      <button
-        type="submit"
-        className="btn-guardar"
-      >
-        Guardar producto
+        </label>
+      </fieldset>
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+      {success && (
+        <p className="form-success" role="status">
+          {success}
+        </p>
+      )}
+      <button className="button" disabled={busy}>
+        {busy ? 'Publicando…' : 'Publicar producto'}
+        <Icon name="plus" />
       </button>
     </form>
   );
 }
-
-
-function MostrarProductos({ desplegar }) {
-  const [productos, setProductos] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState(null);
-
-  
-  async function eliminar_producto(id){
-    await fetch("https://ecommerce-backend-xqxo.onrender.com/eliminarProductoB",{
-      method:"POST",
-      headers:{
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        id_producto: id
-      })
-    })
-    location.reload()
-  }
-
-
-  useEffect(() => {
-
-    async function obtenerProductos() {
-      try {
-        const respuesta = await fetch(
-          "https://ecommerce-backend-xqxo.onrender.com/mostrarProductosDashboard"
-        );
-
-        if (!respuesta.ok) {
-          throw new Error("Error al obtener productos");
-        }
-
-        const datos = await respuesta.json();
-
-        setProductos(datos);
-
-      } catch (error) {
-        setError(error.message);
-
-      } finally {
-        setCargando(false);
-      }
+function AdminContent() {
+  const { data: products, loading, error, reload } = useResource('/admin/products', []);
+  const [tab, setTab] = useState('list');
+  const [confirmId, setConfirmId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [actionError, setActionError] = useState('');
+  async function archive(id) {
+    setDeleting(true);
+    setActionError('');
+    try {
+      await api('/admin/products/' + id, { method: 'DELETE', body: {} });
+      setConfirmId(null);
+      reload();
+    } catch (failure) {
+      setActionError(readableError(failure));
+    } finally {
+      setDeleting(false);
     }
-
-    obtenerProductos();
-  }, []);
-
-
-  if (cargando) {
-    return (
-      <div className={`productos ${desplegar}`}>
-        <h2>Cargando productos...</h2>
-      </div>
-    );
   }
-
-
-  if (error) {
-    return (
-      <div className={`productos ${desplegar}`}>
-        <h2>{error}</h2>
-      </div>
-    );
-  }
-
-
   return (
-    <main className={`productos ${desplegar}`}>
-
-      <header className="productos-header">
-        <h1>AIRBELL</h1>
-        <p>Gestión de productos</p>
-      </header>
-
-
-      <section className="mostrar-productos">
-
-        {productos.map((producto) => (
-
-          <article 
-            key={producto.id} 
-            className="producto-card"
-          >
-
-            <div className="producto-imagen">
-
-              <img
-                src={
-                  producto.imagen
-                  ? `https://ecommerce-backend-xqxo.onrender.com/uploads/${producto.imagen}`
-                  : "/imagen-default.png"
-                }
-                alt={producto.nombre}
-                className="img-producto"
-              />
-
+    <main id="main" className="container admin-page">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">AIRBELL · ADMINISTRACIÓN</p>
+          <h1>Cuidá cada detalle.</h1>
+        </div>
+        <button className="button" onClick={() => setTab('create')}>
+          Nuevo producto <Icon name="plus" />
+        </button>
+      </div>
+      <div className="admin-stats">
+        <div>
+          <span>En la colección</span>
+          <strong>{products?.length || 0}</strong>
+        </div>
+        <div>
+          <span>Unidades disponibles</span>
+          <strong>{products?.reduce((sum, item) => sum + Number(item.stock), 0) || 0}</strong>
+        </div>
+        <div>
+          <span>Sin stock</span>
+          <strong>{products?.filter((item) => !item.stock).length || 0}</strong>
+        </div>
+      </div>
+      <div className="category-tabs admin-tabs">
+        <button className={tab === 'list' ? 'selected' : ''} onClick={() => setTab('list')}>
+          Colección
+        </button>
+        <button className={tab === 'create' ? 'selected' : ''} onClick={() => setTab('create')}>
+          Agregar fragancia
+        </button>
+      </div>
+      {tab === 'create' ? (
+        <ProductForm onSaved={reload} />
+      ) : loading ? (
+        <Loading />
+      ) : error ? (
+        <ErrorState message={error} retry={reload} />
+      ) : (
+        <>
+          {actionError && <ErrorState message={actionError} />}
+          <div className="admin-product-list">
+            {products?.map((product) => (
+              <article className="admin-product" key={product.id}>
+                <div className="admin-product-image">
+                  <ProductImage product={product} />
+                </div>
+                <div>
+                  <p className="eyebrow">{product.marca}</p>
+                  <h2>{product.nombre}</h2>
+                  <p>
+                    {product.sku} · {product.categoria} · {product.tamano}
+                  </p>
+                </div>
+                <div className="admin-product-numbers">
+                  <strong>{money(finalPrice(product))}</strong>
+                  <span>{product.stock} unidades</span>
+                </div>
+                <div className="admin-product-action">
+                  {confirmId === product.id ? (
+                    <>
+                      <span>¿Archivar esta fragancia?</span>
+                      <button
+                        className="button danger"
+                        disabled={deleting}
+                        onClick={() => archive(product.id)}
+                      >
+                        {deleting ? 'Archivando…' : 'Confirmar'}
+                      </button>
+                      <button
+                        className="text-button"
+                        disabled={deleting}
+                        onClick={() => setConfirmId(null)}
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  ) : (
+                    <button className="text-button" onClick={() => setConfirmId(product.id)}>
+                      Archivar
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+          {!products?.length && (
+            <div className="empty-state">
+              <h2>Tu colección empieza acá.</h2>
+              <p>Agregá la primera fragancia para publicarla en la tienda.</p>
             </div>
-
-
-
-            <div className="producto-info">
-
-              <div className="producto-top">
-
-                <span className="producto-categoria">
-                  {producto.categoria}
-                </span>
-
-
-                <span 
-                  className={`estado ${
-                    producto.estado === "activo"
-                    ? "activo"
-                    : "inactivo"
-                  }`}
-                >
-                  {producto.estado}
-                </span>
-
-              </div>
-
-
-
-              <h2>
-                {producto.nombre}
-              </h2>
-
-
-              <p className="producto-marca">
-                Marca: {producto.marca}
-              </p>
-
-
-              <p className="producto-descripcion">
-                {producto.descripcion}
-              </p>
-
-
-
-              <div className="producto-detalles">
-
-                <span>
-                  📦 {producto.stock} unidades
-                </span>
-
-                <span>
-                  💧 {producto.tamano}
-                </span>
-
-              </div>
-
-
-
-              <div className="producto-footer">
-
-                <strong className="precio">
-                  ${Number(producto.precio).toLocaleString()}
-                </strong>
-
-
-                {producto.oferta > 0 && (
-
-                  <span className="oferta">
-                    -{producto.oferta}%
-                  </span>
-
-                )}
-
-              </div>
-
-
-
-              <div className="acciones">
-                <button className="eliminar" onClick={()=> {eliminar_producto(producto.id)}}>
-                  Eliminar
-                </button>
-
-              </div>
-
-
-            </div>
-
-          </article>
-
-        ))}
-
-      </section>
-
+          )}
+        </>
+      )}
     </main>
   );
 }
-
-
-
-export default Dashboard
+export default function Dashboard() {
+  const { user, authLoading } = useShop();
+  if (authLoading)
+    return (
+      <main id="main">
+        <Loading label="Verificando acceso…" />
+      </main>
+    );
+  if (!user) return <Navigate to="/login" state={{ from: '/dashboard' }} replace />;
+  if (user.rol !== 'admin') return <Navigate to="/" replace />;
+  return <AdminContent />;
+}

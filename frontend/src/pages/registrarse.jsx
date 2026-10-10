@@ -1,269 +1,185 @@
-import "../css/variables.css"
-import "../css/registrarse.css"
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
-import NavBar from "../componentes/navbar"
-
-
-function InicioDeSesion(){
-
-
-    const [cambiarpag,setcambiarpag] = useState(true)
-
-    return(
-        <>
-        <NavBar/>
-            {
-                cambiarpag
-                ? <Registro setcambiarpag={setcambiarpag}/>
-                : <Login setcambiarpag={setcambiarpag}/>
-            }
-        </>
-    )
-}
-
-
-function Registro({setcambiarpag}){
-
-    const [contenido,setcontenido] = useState({
-        nombre:"",
-        email:"",
-        password:"",
-        confirmpassword:""
-    })
-
-
-    async function registroEnvio(e){
-
-        e.preventDefault()
-
-        try{
-
-            const respuesta = await fetch(
-                "https://ecommerce-backend-xqxo.onrender.com/usuarios",
-                {
-                    method:"POST",
-                    headers:{
-                        "Content-Type":"application/json"
-                    },
-                    body:JSON.stringify(contenido)
-                }
-            )
-
-            const datos = await respuesta.json()
-
-            localStorage.setItem("id", datos.id)
-            localStorage.setItem("rol", datos.rol)
-
-        }catch(error){
-
-            console.error(error)
-
-        }
-
+import { useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useShop } from '../context/ShopContext';
+import { DEMO_MODE, readableError } from '../services/api';
+import Icon from '../components/Icon';
+import { Loading } from '../components/Feedback';
+export default function AuthPage() {
+  const { user, authLoading, authenticate } = useShop();
+  const [mode, setMode] = useState('login');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const from = location.state?.from;
+  const returnPath =
+    typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/';
+  if (authLoading)
+    return (
+      <main id="main">
+        <Loading label="Recuperando tu sesión…" />
+      </main>
+    );
+  if (user) return <Navigate to={user.rol === 'admin' ? '/dashboard' : returnPath} replace />;
+  async function submit(event) {
+    event.preventDefault();
+    setError('');
+    const form = new FormData(event.currentTarget);
+    const data = Object.fromEntries(form);
+    if (mode === 'register' && data.password !== data.confirmpassword) {
+      setError('Las contraseñas no coinciden.');
+      return;
     }
-
-
-    return(
-        <section className="registro-card">
-
-            <h1>Crear cuenta</h1>
-
-            <p>
-                Registrate para disfrutar de nuestras fragancias exclusivas.
-            </p>
-
-            <form className="registro-formulario" onSubmit={registroEnvio}>
-
-                <div className="campo">
-                    <label>Nombre</label>
-                    <input 
-                    type="text"
-                    placeholder="Ingrese su nombre"
-                    onChange={(e)=>setcontenido({
-                        ...contenido,
-                        nombre:e.target.value
-                    })}
-                    />
-                </div>
-
-
-                <div className="campo">
-                    <label>Email</label>
-                    <input 
-                    type="email"
-                    placeholder="Ingrese su email"
-                    onChange={(e)=>setcontenido({
-                        ...contenido,
-                        email:e.target.value
-                    })}
-                    />
-                </div>
-
-
-                <div className="campo">
-                    <label>Contraseña</label>
-                    <input 
-                    type="password"
-                    placeholder="Ingrese su contraseña"
-                    onChange={(e)=>setcontenido({
-                        ...contenido,
-                        password:e.target.value
-                    })}
-                    />
-                </div>
-
-
-                <div className="campo">
-                    <label>Confirmar contraseña</label>
-                    <input 
-                    type="password"
-                    placeholder="Repita su contraseña"
-                    onChange={(e)=>setcontenido({
-                        ...contenido,
-                        confirmpassword:e.target.value
-                    })}
-                    />
-                </div>
-
-
-                <button type="submit">
-                    Registrarse
-                </button>
-
-            </form>
-
-
-            <p onClick={()=>setcambiarpag(false)}>
-                ¿Ya tenés cuenta? Iniciá sesión.
-            </p>
-
-        </section>
-    )
-}
-
-
-
-function Login({setcambiarpag}){
-  const navigate = useNavigate()
-
-
-    const [datos,setdatos] = useState({
-        email:"",
-        password:""
-    })
-
-
-    async function loginEnvio(e){
-
-        e.preventDefault()
-
-        try{
-
-            const loginrespuesta = await fetch(
-                "https://ecommerce-backend-xqxo.onrender.com/login",
-                {
-                    method:"POST",
-                    headers:{
-                        "Content-Type":"application/json"
-                    },
-                    body:JSON.stringify(datos)
-                }
-            )
-
-
-            const dato = await loginrespuesta.json()
-
-            if(dato.rol === "admin"){
-               navigate("/dashboard")
-            }
-            
-
-
-            if(dato.id){
-
-                localStorage.setItem("id", dato.id)
-                localStorage.setItem("rol", dato.rol)
-                location.reload()
-
-            }
-            
-
-
-            if(dato.msg === "contraseña incorrecta"){
-                alert("Contraseña incorrecta")
-            }
-
-
-            if(dato.msg === "email incorrecto"){
-                alert("Email incorrecto")
-            }
-
-
-        }catch(error){
-
-            console.error(error)
-
-        }
-
+    setBusy(true);
+    try {
+      const account = await authenticate(mode, data);
+      navigate(account.rol === 'admin' ? '/dashboard' : returnPath, { replace: true });
+    } catch (failure) {
+      setError(readableError(failure));
+    } finally {
+      setBusy(false);
     }
-
-
-    return(
-        <section className="login-card">
-
-            <h1>Inicia sesión</h1>
-
-            <p>
-                Inicia sesión para disfrutar de nuestras fragancias exclusivas.
+  }
+  return (
+    <main id="main" className="auth-page container">
+      <aside className="auth-story">
+        <img src="/images/editorial-hero.webp" alt="" />
+        <div>
+          <p className="eyebrow">BIENVENIDA A AIRBELL</p>
+          <h1>
+            Tu esencia.
+            <br />
+            <em>Tu universo.</em>
+          </h1>
+          <p>Un espacio para descubrir lo que te hace única.</p>
+        </div>
+      </aside>
+      <section className="auth-content">
+        <Link to="/" className="back-link">
+          ← Volver a la colección
+        </Link>
+        <p className="eyebrow">UN PEQUEÑO RITUAL</p>
+        <h2>{mode === 'login' ? 'Qué bueno verte.' : 'Tu historia empieza acá.'}</h2>
+        <p>
+          {mode === 'login'
+            ? 'Ingresá a tu cuenta y continuá descubriendo.'
+            : 'Creá tu cuenta para guardar tu selección de fragancias.'}
+        </p>
+        <div className="auth-tabs" role="group" aria-label="Acceso a la cuenta">
+          <button
+            aria-pressed={mode === 'login'}
+            className={mode === 'login' ? 'selected' : ''}
+            onClick={() => {
+              setMode('login');
+              setError('');
+            }}
+          >
+            Iniciar sesión
+          </button>
+          <button
+            aria-pressed={mode === 'register'}
+            className={mode === 'register' ? 'selected' : ''}
+            onClick={() => {
+              setMode('register');
+              setError('');
+            }}
+          >
+            Crear cuenta
+          </button>
+        </div>
+        <form key={mode} onSubmit={submit} className="form-stack">
+          {mode === 'register' && (
+            <label htmlFor="auth-name">
+              Tu nombre
+              <input
+                id="auth-name"
+                name="nombre"
+                autoComplete="name"
+                minLength={2}
+                maxLength={100}
+                required
+                placeholder="¿Cómo te llamás?"
+                disabled={busy}
+              />
+            </label>
+          )}
+          <label htmlFor="auth-email">
+            Email
+            <input
+              id="auth-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              maxLength={254}
+              required
+              placeholder="vos@ejemplo.com"
+              disabled={busy}
+            />
+          </label>
+          <div className="form-field">
+            <label htmlFor="auth-password">Contraseña</label>
+            <div className="password-field">
+              <input
+                id="auth-password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                minLength={mode === 'register' ? 12 : 1}
+                maxLength={72}
+                required
+                disabled={busy}
+                aria-describedby={mode === 'register' ? 'password-help' : undefined}
+              />
+              <button
+                type="button"
+                className="text-button"
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((x) => !x)}
+              >
+                {showPassword ? 'Ocultar' : 'Mostrar'}
+              </button>
+            </div>
+          </div>
+          {mode === 'register' && (
+            <>
+              <small id="password-help">
+                Usá al menos 12 caracteres. Una frase larga es una buena opción.
+              </small>
+              <label htmlFor="auth-confirm">
+                Confirmá tu contraseña
+                <input
+                  id="auth-confirm"
+                  name="confirmpassword"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  minLength={12}
+                  maxLength={72}
+                  required
+                  disabled={busy}
+                />
+              </label>
+            </>
+          )}
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
             </p>
-
-
-            <form className="login-formulario" onSubmit={loginEnvio}>
-
-
-                <div className="campo">
-                    <label>Email</label>
-
-                    <input
-                    type="email"
-                    placeholder="Ingrese su email"
-                    onChange={(e)=>setdatos({
-                        ...datos,
-                        email:e.target.value
-                    })}
-                    />
-                </div>
-
-
-                <div className="campo">
-                    <label>Contraseña</label>
-
-                    <input
-                    type="password"
-                    placeholder="Ingrese su contraseña"
-                    onChange={(e)=>setdatos({
-                        ...datos,
-                        password:e.target.value
-                    })}
-                    />
-                </div>
-
-
-                <button type="submit">
-                    Iniciar sesión
-                </button>
-
-            </form>
-
-
-            <p onClick={()=>setcambiarpag(true)}>
-                ¿No tenés una cuenta? Creá una.
+          )}
+          {DEMO_MODE && (
+            <p className="form-error">
+              El acceso a cuentas está deshabilitado en esta demostración.
             </p>
-
-        </section>
-    )
+          )}
+          <button className="button full-width" type="submit" disabled={busy || DEMO_MODE}>
+            {busy ? 'Un momento…' : mode === 'login' ? 'Entrar a mi cuenta' : 'Crear mi cuenta'}
+            <Icon name="arrow" />
+          </button>
+        </form>
+        <p className="auth-security">
+          <Icon name="shield" size={16} /> Tu cuenta, en buenas manos.
+        </p>
+      </section>
+    </main>
+  );
 }
-
-
-export default InicioDeSesion

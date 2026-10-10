@@ -1,208 +1,85 @@
-import './css/App.css'
-import "./css/variables.css"
-import Dashboard from "./pages/dashboardAdmin"
-import { useState,useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import Carrito from "./componentes/carrito"
-import { Routes, Route } from "react-router-dom"
-import Login from "./pages/registrarse"
-import PagProducto from "./pages/productod"
-import NavBar from './componentes/navbar'
-
-
-function Inicio(){
-
-    return(
-        <>
-        <NavBar/>
-            <header className="hero">
-                <div className="hero-content">
-                    <h1>
-                        Encontrá tu fragancia ideal
-                    </h1>
-                </div>
-            </header>
-            <Carrito/>
-            <Home/>
-        </>
-    )
+import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import NavBar from './components/NavBar';
+import Carrito from './components/CartDrawer';
+import Footer from './components/Footer';
+import Home from './pages/Home';
+import Login from './pages/registrarse';
+import Product from './pages/productod';
+import Dashboard from './pages/dashboardAdmin';
+import ShopProvider from './context/ShopProvider';
+import { useShop } from './context/ShopContext';
+import { DEMO_MODE } from './services/api';
+import Icon from './components/Icon';
+import './css/global.css';
+function Layout() {
+  const { notice, authError, retryAuth } = useShop();
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    document.title =
+      pathname === '/login'
+        ? 'Tu cuenta · Airbell'
+        : pathname === '/dashboard'
+          ? 'Administración · Airbell'
+          : 'Airbell · El arte de encontrar tu fragancia';
+    if (hash)
+      requestAnimationFrame(() =>
+        document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'instant' }),
+      );
+    else window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [pathname, hash]);
+  return (
+    <>
+      <a className="skip-link" href="#main">
+        Saltar al contenido
+      </a>
+      <NavBar />
+      {DEMO_MODE && (
+        <div className="demo-banner">
+          Vista de demostración · Productos ficticios · Compras deshabilitadas
+        </div>
+      )}
+      {authError && (
+        <div className="connection-banner" role="status">
+          La conexión con tu cuenta no está disponible.{' '}
+          <button className="text-button" onClick={retryAuth}>
+            Reintentar
+          </button>
+        </div>
+      )}
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/producto/:id" element={<Product />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route
+          path="*"
+          element={
+            <main id="main" className="container empty-state">
+              <p className="eyebrow">404</p>
+              <h1>Este camino no lleva a una fragancia.</h1>
+              <Link className="button" to="/">
+                Volver a la colección <Icon name="arrow" />
+              </Link>
+            </main>
+          }
+        />
+      </Routes>
+      <Footer />
+      <Carrito />
+      {notice && (
+        <div className="toast" role="status">
+          <Icon name="bag" />
+          <span>{notice}</span>
+        </div>
+      )}
+    </>
+  );
 }
-
-
-
-function App(){
-
-    return(
-
-        <>
-
-            <Routes>
-
-                <Route
-                path="/"
-                element={<Inicio/>}
-                />
-
-
-                <Route
-                path="/login"
-                element={<Login/>}
-                />
-
-
-                <Route
-                path="/dashboard"
-                element={<Dashboard/>}
-                />
-
-
-                <Route
-                path="/producto/:id"
-                element={<PagProducto/>}
-                />
-
-            </Routes>
-
-
-        </>
-
-    )
-
+export default function App() {
+  return (
+    <ShopProvider>
+      <Layout />
+    </ShopProvider>
+  );
 }
-
-
-
-function Home(){
-
-const [product,setproduct] = useState([])
-
-
-
-useEffect(()=>{
-
-    async function mostprodfrontend(){
-
-        try{
-
-            const filasProd = await fetch(
-                "https://ecommerce-backend-xqxo.onrender.com/mostProdFrontend"
-            )
-
-
-            if(!filasProd.ok){
-
-                throw new Error(
-                    "Error al obtener productos"
-                )
-
-            }
-
-
-            const datosProd = await filasProd.json()
-
-            setproduct(datosProd)
-
-
-        }catch(error){
-
-            console.error(error)
-
-        }
-
-    }
-
-
-    mostprodfrontend()
-
-
-},[])
-
-
-
-return(
-
-    <main>
-
-
-        <section className="seccion-productos catalogo">
-
-            <h2>
-                Todos nuestros perfumes
-            </h2>
-
-
-            <div className="grid-productos">
-
-
-                {
-                    product.map((product)=>(
-
-                        <div
-                        className="producto-card"
-                        key={product.id}
-                        >
-
-                            <img
-                            src={`https://ecommerce-backend-xqxo.onrender.com/uploads/${product.imagen}`}
-                            alt="imagen del producto"
-                            className="imagen-producto"
-                            />
-
-
-                            <h3>
-                                {product.nombre}
-                            </h3>
-
-
-                            <p>
-                                {product.precio}
-                            </p>
-
-
-                            <Link to={`/producto/${product.id}`}>
-                                Ver producto
-                            </Link>
-
-
-                        </div>
-
-                    ))
-                }
-
-
-            </div>
-
-
-        </section>
-
-
-
-        <section className="banner-marca">
-
-
-            <h2>
-                Una fragancia cuenta una historia
-            </h2>
-
-
-            <p>
-                Elegimos perfumes únicos para acompañarte en cada momento.
-            </p>
-
-
-            <button>
-                Conocer colección
-            </button>
-
-
-        </section>
-
-
-    </main>
-
-)
-
-}
-
-
-export default App

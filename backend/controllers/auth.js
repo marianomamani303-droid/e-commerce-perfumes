@@ -1,119 +1,88 @@
-import pool from "../config/config.js";
-import mysql from "mysql2/promise";
-import express from "express"
-import bcrypt from "bcrypt";
-
-const registro = async (req, res) => {
-    const { nombre, email, password, confirmpassword } = req.body;
-    
-
-    try {
-        const [filas] = await pool.query(
-            "SELECT * FROM usuarios WHERE email = ?",
-            [email]
-        );
-
-        if (filas.length > 0) {
-            return res.json({
-                msg: "El usuario ya existe"
-            });
-        }
-
-        if (password !== confirmpassword) {
-            return res.json({
-                msg: "Las contraseñas no coinciden"
-            });
-        }
-        const hash = await bcrypt.hash(password,10)
-
-        const [resultado] = await pool.execute(
-            "INSERT INTO usuarios (nombre,email,password) VALUES (?,?,?)",
-            [nombre, email, hash]
-        );
-
-        res.json({
-            msg: "Usuario creado",
-            id: resultado.insertId
-        });
-
-
-    } catch (error) {
-
-        res.status(500).json({
-            msg: "Error del servidor"
-        });
-    }
-};
-
-const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const [fila] = await pool.execute(
-      "SELECT * FROM usuarios WHERE email = ?",
-      [email]
-    );
-
-    if (fila.length === 0) {
-      return res.status(404).json({
-        msg: "email incorrecto"
-      });
-    }
-
-    const usuario = fila[0];
-
-    const coincidencia = await bcrypt.compare(
-      password,
-      usuario.password
-    );
-
-    if (!coincidencia) {
-      return res.status(401).json({
-        msg: "contraseña incorrecta"
-      });
-    }
-
-
-
-    return res.status(200).json({
-      id: usuario.id,
-      rol: usuario.rol
-    });
-    
-  } catch (error) {
-
-    return res.status(500).json({
-      msg: "Error del servidor"
-    });
+import bcrypt from 'bcrypt';
+import { promisify } from 'node:util';
+import { registrationSchema, loginSchema } from '../lib/validation.js';
+import { HttpError } from '../lib/errors.js';
+import { csrfToken } from '../middleware/security.js';
+export const bcryptPattern = /^\$2[ab]\$(0[4-9]|[12]\d|3[01])\$[./A-Za-z0-9]{53}$/;
+const publicUser = (user) => ({
+  id: user.id,
+  nombre: user.nombre,
+  email: user.email,
+  rol: user.rol,
+});
+export function authController(pool, config) {
+  const dummy = bcrypt.hash('dummy-password-not-an-account', 12);
+  async function establish(req, user) {
+    await promisify(req.session.regenerate).call(req.session);
+    req.session.userId = user.id;
+    req.session.authExpires = Date.now() + config.sessionMs;
+    const token = csrfToken(req);
+    await promisify(req.session.save).call(req.session);
+    return { user: publicUser(user), csrfToken: token };
   }
-};
-
-const mostrar_datos = async (req, res) => {
-    try {
-        const { id } = req.body;
-
-        const [filas] = await pool.execute(
-            "SELECT * FROM usuarios WHERE id = ?",
-            [id]
+  return {
+    session: async (req, res) => {
+      let user = null;
+      if (req.session.userId && req.session.authExpires > Date.now()) {
+        const [[row]] = await pool.execute(
+          'SELECT id, nombre, email, rol FROM usuarios WHERE id = ?',
+          [req.session.userId],
         );
-
-        if (filas.length === 0) {
-            return res.status(404).json({
-                mensaje: "Usuario no encontrado"
-            });
-        }
-
-        res.json({
-            nombre: filas[0].nombre,
-            email: filas[0].email
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            mensaje: "Error del servidor"
-        });
-    }
-};
-
-export { registro,login,mostrar_datos };
-
+        user = row ? publicUser(row) : null;
+      }
+      res.json({ user, csrfToken: csrfToken(req) });
+    },
+    register: async (req, res) => {
+      const data = registrationSchema.parse(req.body);
+      const hash = await bcrypt.hash(data.password, 12);
+      const [existing] = await pool.execute('SELECT id FROM usuarios WHERE email = ?', [
+        data.email,
+      ]);
+      if (existing.length)
+        throw new HttpError(
+          409,
+          'No pudimos crear la cuenta con esos datos. Si ya tenés una cuenta, iniciá sesión.',
+        );
+      const [result] = await pool.execute(
+        'INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)',
+        [data.nombre, data.email, hash],
+      );
+      res.status(201).json(
+        await establish(req, {
+          id: result.insertId,
+          nombre: data.nombre,
+          email: data.email,
+          rol: 'usuario',
+        }),
+      );
+    },
+    login: async (req, res) => {
+      const data = loginSchema.parse(req.body);
+      const [[user]] = await pool.execute(
+        'SELECT id, nombre, email, rol, password FROM usuarios WHERE email = ?',
+        [data.email],
+      );
+      const hash = user && bcryptPattern.test(user.password) ? user.password : await dummy;
+      const valid = await bcrypt.compare(data.password, hash);
+      if (!user || !bcryptPattern.test(user.password) || !valid)
+        throw new HttpError(401, 'Email o contraseña incorrectos.');
+      if (bcrypt.getRounds(user.password) < 12)
+        await pool.execute('UPDATE usuarios SET password = ? WHERE id = ? AND password = ?', [
+          await bcrypt.hash(data.password, 12),
+          user.id,
+          user.password,
+        ]);
+      res.json(await establish(req, user));
+    },
+    logout: async (req, res) => {
+      await promisify(req.session.destroy).call(req.session);
+      res.clearCookie(config.cookieName, {
+        path: '/',
+        httpOnly: true,
+        secure: config.production,
+        sameSite: config.sameSite,
+      });
+      res.sendStatus(204);
+    },
+  };
+}
